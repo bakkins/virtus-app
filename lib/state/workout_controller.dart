@@ -44,8 +44,16 @@ class WorkoutController extends ChangeNotifier {
   }
 
   void addSet(int exerciseIndex) {
+    if (exerciseIndex < 0 || exerciseIndex >= _workout.exercises.length) return;
     final exercise = _workout.exercises[exerciseIndex];
-    exercise.sets.add(WorkoutSet(weight: 0, reps: 0, rir: 0));
+    final previous = exercise.sets.isEmpty ? null : exercise.sets.last;
+    exercise.sets.add(
+      WorkoutSet(
+        weight: previous?.weight ?? 0,
+        reps: 0,
+        rir: previous?.rir ?? 0,
+      ),
+    );
     notifyListeners();
   }
 }

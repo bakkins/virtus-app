@@ -64,7 +64,7 @@ class ExerciseWidget extends StatelessWidget {
     );
   }
 
-  TextFormField _numberField({
+    TextFormField _numberField({
     required String initial,
     required String label,
     required bool decimal,
@@ -78,6 +78,7 @@ class ExerciseWidget extends StatelessWidget {
       ],
       decoration: InputDecoration(
         labelText: label,
+        hintText: initial.isEmpty ? '-' : null,
         isDense: true,
         border: const OutlineInputBorder(),
       ),
@@ -85,7 +86,7 @@ class ExerciseWidget extends StatelessWidget {
     );
   }
 
-  Widget _setRow({
+Widget _setRow({
     required ColorScheme colorScheme,
     required int setIndex,
     required WorkoutSet set,
@@ -104,36 +105,33 @@ class ExerciseWidget extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _numberField(
-              initial: _weightText(set.weight),
+              initial: set.weight == 0 ? '' : _weightText(set.weight),
               label: 'kg',
               decimal: true,
               onChanged: (value) {
-                final parsed = double.tryParse(value);
-                if (parsed != null) _onChanged(setIndex, weight: parsed);
+                _onChanged(setIndex, weight: double.tryParse(value) ?? 0);
               },
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: _numberField(
-              initial: set.reps.toString(),
+              initial: set.reps == 0 ? '' : set.reps.toString(),
               label: 'reps',
               decimal: false,
               onChanged: (value) {
-                final parsed = int.tryParse(value);
-                if (parsed != null) _onChanged(setIndex, reps: parsed);
+                _onChanged(setIndex, reps: int.tryParse(value) ?? 0);
               },
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: _numberField(
-              initial: set.rir.toString(),
+              initial: set.rir == 0 ? '' : set.rir.toString(),
               label: 'rir',
               decimal: false,
               onChanged: (value) {
-                final parsed = int.tryParse(value);
-                if (parsed != null) _onChanged(setIndex, rir: parsed);
+                _onChanged(setIndex, rir: int.tryParse(value) ?? 0);
               },
             ),
           ),
