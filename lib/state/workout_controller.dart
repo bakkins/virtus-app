@@ -7,11 +7,11 @@ class WorkoutController extends ChangeNotifier {
   final Workout _workout;
 
   WorkoutController()
-      : _workout = Workout(
-          name: 'Today\'s workout',
-          date: DateTime.now(),
-          exercises: [],
-        );
+    : _workout = Workout(
+        name: 'Today\'s workout',
+        date: DateTime.now(),
+        exercises: [],
+      );
 
   Workout get workout => _workout;
 
@@ -19,10 +19,7 @@ class WorkoutController extends ChangeNotifier {
 
   void addExercise(String name) {
     _workout.exercises.add(
-      Exercise(
-        name: name,
-        sets: [WorkoutSet(weight: 0, reps: 0, rir: 0)],
-      ),
+      Exercise(name: name, sets: [WorkoutSet(weight: 0, reps: 0, rir: 0)]),
     );
     notifyListeners();
   }
@@ -54,6 +51,12 @@ class WorkoutController extends ChangeNotifier {
         rir: previous?.rir ?? 0,
       ),
     );
+    notifyListeners();
+  }
+
+  void reorderExercises(int oldIndex, int newIndex) {
+    final exercise = _workout.exercises.removeAt(oldIndex);
+    _workout.exercises.insert(newIndex, exercise);
     notifyListeners();
   }
 }

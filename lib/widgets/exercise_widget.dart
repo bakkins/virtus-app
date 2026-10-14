@@ -39,13 +39,26 @@ class ExerciseWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            exercise.name,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  exercise.name,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              ReorderableDragStartListener(
+                index: index,
+                child: Icon(
+                  Icons.drag_handle,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           for (int i = 0; i < sets.length; i++)
@@ -64,7 +77,7 @@ class ExerciseWidget extends StatelessWidget {
     );
   }
 
-    TextFormField _numberField({
+  TextFormField _numberField({
     required String initial,
     required String label,
     required bool decimal,
@@ -74,7 +87,9 @@ class ExerciseWidget extends StatelessWidget {
       initialValue: initial,
       keyboardType: TextInputType.numberWithOptions(decimal: decimal),
       inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(decimal ? r'[0-9.]' : r'[0-9]')),
+        FilteringTextInputFormatter.allow(
+          RegExp(decimal ? r'[0-9.]' : r'[0-9]'),
+        ),
       ],
       decoration: InputDecoration(
         labelText: label,
@@ -86,7 +101,7 @@ class ExerciseWidget extends StatelessWidget {
     );
   }
 
-Widget _setRow({
+  Widget _setRow({
     required ColorScheme colorScheme,
     required int setIndex,
     required WorkoutSet set,
