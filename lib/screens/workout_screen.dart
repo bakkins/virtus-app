@@ -25,15 +25,20 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               child: Text('Tap + to add your first exercise'),
             );
           }
-          return ListView(
-            children: [
-              for (int i = 0; i < _controller.exercises.length; i++)
-                ExerciseWidget(
-                  exercise: _controller.exercises[i],
-                  controller: _controller,
-                  index: i,
-                ),
-            ],
+          return ReorderableListView.builder(
+            padding: const EdgeInsets.only(bottom: 88),
+            buildDefaultDragHandles: false,
+            itemCount: _controller.exercises.length,
+            onReorderItem: _controller.reorderExercises,
+            itemBuilder: (context, i) {
+              final exercise = _controller.exercises[i];
+              return ExerciseWidget(
+                key: ObjectKey(exercise),
+                exercise: exercise,
+                controller: _controller,
+                index: i,
+              );
+            },
           );
         },
       ),
