@@ -23,6 +23,30 @@ class ExerciseWidget extends StatelessWidget {
     controller.updateSet(index, setIndex, weight: weight, reps: reps, rir: rir);
   }
 
+  Future<bool> _confirmDelete(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete exercise?'),
+      content: Text('Delete "${exercise.name}" and all its sets?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
+}
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -58,11 +82,19 @@ class ExerciseWidget extends StatelessWidget {
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                color: colorScheme.error,
+                onPressed: () async {
+                  if (await _confirmDelete(context))
+                  {controller.removeExercise(index);}
+                },
+              ),
             ],
           ),
           const SizedBox(height: 12),
           for (int i = 0; i < sets.length; i++)
-            _setRow(colorScheme: colorScheme, setIndex: i, set: sets[i]),
+            _setRow(colorScheme: colorScheme, setIndex: i, set: sets[i], context: context),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
@@ -105,8 +137,10 @@ class ExerciseWidget extends StatelessWidget {
     required ColorScheme colorScheme,
     required int setIndex,
     required WorkoutSet set,
+    required BuildContext context
   }) {
     return Padding(
+      key: ObjectKey(set),
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
@@ -149,6 +183,20 @@ class ExerciseWidget extends StatelessWidget {
                 _onChanged(setIndex, rir: int.tryParse(value) ?? 0);
               },
             ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20),
+            color: colorScheme.error,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            onPressed: () async {
+              if (exercise.sets.length == 1) {
+                if (await _confirmDelete(context)) controller.removeExercise(index);
+              } else {
+                controller.removeSet(index, setIndex);
+              }
+            },
           ),
         ],
       ),

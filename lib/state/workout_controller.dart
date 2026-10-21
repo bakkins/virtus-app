@@ -59,4 +59,18 @@ class WorkoutController extends ChangeNotifier {
     _workout.exercises.insert(newIndex, exercise);
     notifyListeners();
   }
+  
+    void removeExercise(int exerciseIndex) {
+    if (exerciseIndex < 0 || exerciseIndex >= _workout.exercises.length) return;
+    _workout.exercises.removeAt(exerciseIndex);
+    notifyListeners();
+  }
+
+  void removeSet(int exerciseIndex, int setIndex) {
+    if (exerciseIndex < 0 || exerciseIndex >= _workout.exercises.length) return;
+    final exercise = _workout.exercises[exerciseIndex];
+    if (setIndex < 0 || setIndex >= exercise.sets.length) return;
+    exercise.sets.removeAt(setIndex);
+    notifyListeners();
+  }
 }
