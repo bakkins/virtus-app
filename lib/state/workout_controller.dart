@@ -1,17 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:virtus_app/models/exercise.dart';
 import 'package:virtus_app/models/workout.dart';
 import 'package:virtus_app/models/workout_set.dart';
+import 'package:virtus_app/repositories/workout_repository.dart';
 
 class WorkoutController extends ChangeNotifier {
   final Workout _workout;
+  final WorkoutRepository _repository;
+  Timer? _saveTimer;
 
-  WorkoutController()
-    : _workout = Workout(
-        name: 'Today\'s workout',
-        date: DateTime.now(),
-        exercises: [],
-      );
+  WorkoutController({Workout? workout, required this._repository})
+    : _workout =
+          workout ??
+          Workout(
+            name: 'Today\'s workout',
+            date: DateTime.now(),
+            exercises: [],
+          );
+
+  void _notify() {
+    _workout.updatedAt = DateTime.now();
+    notifyListeners();
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 400), () {
+      _repository.saveCurrent(_workout).catchError((_) {});
+    });
+  }
 
   Workout get workout => _workout;
 
@@ -21,7 +37,7 @@ class WorkoutController extends ChangeNotifier {
     _workout.exercises.add(
       Exercise(name: name, sets: [WorkoutSet(weight: 0, reps: 0, rir: 0)]),
     );
-    notifyListeners();
+    _notify();
   }
 
   void updateSet(
@@ -37,7 +53,7 @@ class WorkoutController extends ChangeNotifier {
     if (weight != null) set.weight = weight;
     if (reps != null) set.reps = reps;
     if (rir != null) set.rir = rir;
-    notifyListeners();
+    _notify();
   }
 
   void addSet(int exerciseIndex) {
@@ -51,19 +67,19 @@ class WorkoutController extends ChangeNotifier {
         rir: previous?.rir ?? 0,
       ),
     );
-    notifyListeners();
+    _notify();
   }
 
   void reorderExercises(int oldIndex, int newIndex) {
     final exercise = _workout.exercises.removeAt(oldIndex);
     _workout.exercises.insert(newIndex, exercise);
-    notifyListeners();
+    _notify();
   }
-  
-    void removeExercise(int exerciseIndex) {
+
+  void removeExercise(int exerciseIndex) {
     if (exerciseIndex < 0 || exerciseIndex >= _workout.exercises.length) return;
     _workout.exercises.removeAt(exerciseIndex);
-    notifyListeners();
+    _notify();
   }
 
   void removeSet(int exerciseIndex, int setIndex) {
@@ -71,6 +87,6 @@ class WorkoutController extends ChangeNotifier {
     final exercise = _workout.exercises[exerciseIndex];
     if (setIndex < 0 || setIndex >= exercise.sets.length) return;
     exercise.sets.removeAt(setIndex);
-    notifyListeners();
+    _notify();
   }
 }

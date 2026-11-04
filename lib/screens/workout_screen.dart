@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:virtus_app/models/workout.dart';
+import 'package:virtus_app/repositories/workout_repository.dart';
 import 'package:virtus_app/state/workout_controller.dart';
 import 'package:virtus_app/widgets/add_exercise_bottom_sheet.dart';
 import 'package:virtus_app/widgets/exercise_widget.dart';
 
 class WorkoutScreen extends StatefulWidget {
-  const WorkoutScreen({super.key});
+  final WorkoutRepository repository;
+  final Workout? initialWorkout;
+  const WorkoutScreen({
+    super.key,
+    required this.repository,
+    this.initialWorkout,
+  });
 
   @override
   State<WorkoutScreen> createState() => _WorkoutScreenState();
 }
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
-  final WorkoutController _controller = WorkoutController();
-
+  late final WorkoutController _controller = WorkoutController(
+    workout: widget.initialWorkout,
+    repository: widget.repository,
+  );
   @override
   Widget build(BuildContext context) {
     return Scaffold(
