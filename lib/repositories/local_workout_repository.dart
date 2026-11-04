@@ -6,6 +6,9 @@ import 'package:virtus_app/repositories/workout_repository.dart';
 
 class LocalWorkoutRepository implements WorkoutRepository {
   static const String _currentWorkoutKey = 'current_workout';
+  static const String _historyIdsKey = 'history_ids';
+
+  String _workoutKey(String id) => 'workout_$id';
 
   @override
   Future<Workout?> loadCurrent() async {
@@ -23,5 +26,34 @@ class LocalWorkoutRepository implements WorkoutRepository {
   Future<void> saveCurrent(Workout workout) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_currentWorkoutKey, jsonEncode(workout.toJson()));
+  }
+
+  @override
+  Future<void> saveWorkout(Workout workout) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_workoutKey(workout.id), jsonEncode(workout.toJson()));
+
+    final ids = prefs.getStringList(_historyIdsKey) ?? <String>[];
+    if (!ids.contains(workout.id)) {
+      await prefs.setStringList(_historyIdsKey, [workout.id, ...ids]);
+    }
+  }
+
+  @override
+  Future<List<Workout>> loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(_historyIdsKey) ?? <String>[];
+
+    final workouts = <Workout>[];
+    for (final id in ids) {
+      final raw = prefs.getString(_workoutKey(id));
+      if (raw == null) continue; // dead index entry — skip
+      try {
+        workouts.add(Workout.fromJson(jsonDecode(raw) as Map<String, dynamic>));
+      } catch (_) {
+        // corrupt entry — skip instead of breaking the whole list
+      }
+    }
+    return workouts;
   }
 }

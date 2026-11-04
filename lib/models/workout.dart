@@ -22,6 +22,15 @@ class Workout {
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
 
+  int get totalSets =>
+    exercises.fold(0, (sum, exercise) => sum + exercise.sets.length);
+
+  double get totalVolume => exercises.fold(
+    0.0,
+    (sum, exercise) => sum +
+        exercise.sets.fold(0.0, (setSum, set) => setSum + set.weight * set.reps),
+  );
+
   Map<String, dynamic> toJson() => {
     'schemaVersion': schemaVersion,
     'id': id,

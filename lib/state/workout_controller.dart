@@ -7,7 +7,7 @@ import 'package:virtus_app/models/workout_set.dart';
 import 'package:virtus_app/repositories/workout_repository.dart';
 
 class WorkoutController extends ChangeNotifier {
-  final Workout _workout;
+  Workout _workout;
   final WorkoutRepository _repository;
   Timer? _saveTimer;
 
@@ -88,5 +88,31 @@ class WorkoutController extends ChangeNotifier {
     if (setIndex < 0 || setIndex >= exercise.sets.length) return;
     exercise.sets.removeAt(setIndex);
     _notify();
+  }
+
+  Future<bool> finishWorkout() async {
+  if (_workout.exercises.isEmpty) return false;
+
+  _saveTimer?.cancel();
+
+  try {
+    await _repository.saveWorkout(_workout);
+  } catch (_) {
+    return false;
+  }
+
+  _workout = Workout(
+    name: 'Today\'s workout',
+    date: DateTime.now(),
+    exercises: [],
+  );
+
+  try {
+    await _repository.saveCurrent(_workout);
+  } catch (_) {
+  }
+
+  notifyListeners();
+  return true;
   }
 }
