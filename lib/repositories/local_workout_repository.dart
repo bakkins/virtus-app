@@ -56,4 +56,14 @@ class LocalWorkoutRepository implements WorkoutRepository {
     }
     return workouts;
   }
+
+   @override
+  Future<void> deleteWorkout(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_workoutKey(id));
+
+    final ids = prefs.getStringList(_historyIdsKey) ?? <String>[];
+    final updatedIds = ids.where((historyId) => historyId != id).toList();
+    await prefs.setStringList(_historyIdsKey, updatedIds);
+  }
 }

@@ -13,7 +13,38 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late final Future<List<Workout>> _history = widget.repository.loadHistory();
+  late Future<List<Workout>> _history = widget.repository.loadHistory();
+
+  Future<void> _refresh() async {
+    setState(() {
+      _history = widget.repository.loadHistory();
+    });
+    await _history;
+  }
+
+  Future<bool> _confirmDelete(BuildContext context, Workout workout) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete workout?'),
+        content: Text('Delete "${workout.name}" from history?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +63,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
           if (workouts.isEmpty) {
             return const Center(child: Text('No finished workouts yet'));
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: workouts.length,
-            itemBuilder: (context, i) => _HistoryTile(workout: workouts[i]),
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: workouts.length,
+              itemBuilder: (context, i) {
+                final workout = workouts[i];
+                return Dismissible(
+                  key: ValueKey(workout.id),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) => _confirmDelete(context, workout),
+                    onDismissed: (_) async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await widget.repository.deleteWorkout(workout.id);
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Workout deleted')),
+                    );
+                    _refresh();
+                  },
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 16),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      Icons.delete,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  child: _HistoryTile(workout: workout),
+                );
+              },
+            ),
           );
         },
       ),
