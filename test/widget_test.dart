@@ -1,19 +1,23 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:virtus_app/data/database.dart';
 import 'package:virtus_app/main.dart';
-import 'package:virtus_app/repositories/local_workout_repository.dart';
+import 'package:virtus_app/repositories/drift_workout_repository.dart';
+import 'package:virtus_app/repositories/statistics_repository.dart';
 
 void main() {
-testWidgets('workout screen smoke test', (tester) async {
-  await tester.pumpWidget(MainApp(repository: LocalWorkoutRepository()));
-  expect(find.text('Workout'), findsOneWidget);
-  expect(find.text('Tap + to add your first exercise'), findsOneWidget);
-});
-  }
+  testWidgets('workout screen smoke test', (tester) async {
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await tester.pumpWidget(
+      MainApp(
+        repository: DriftWorkoutRepository(db),
+        statisticsRepository: DriftStatisticsRepository(db),
+      ),
+    );
+
+    expect(find.text('Workout'), findsOneWidget);
+    expect(find.text('Tap + to add your first exercise'), findsOneWidget);
+  });
+}
