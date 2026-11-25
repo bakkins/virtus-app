@@ -90,6 +90,23 @@ void main() {
     expect(weekly.single.volume, 60 * 8 + 60 * 7);
   });
 
+  test('exercise templates keep their dominant muscle group', () async {
+    await stats.ensureTemplate(
+      name: 'Barbell Bench Press',
+      muscleGroup: 'Chest',
+    );
+    await stats.ensureTemplate(
+      name: 'Barbell Bench Press',
+      muscleGroup: 'Chest',
+    );
+
+    final saved = await stats.savedExercises();
+
+    expect(saved, hasLength(1));
+    expect(saved.single.name, 'Barbell Bench Press');
+    expect(saved.single.muscleGroup, 'Chest');
+  });
+
   test('weekly goal queries use this week completed workouts', () async {
     final workout = Workout(
       name: 'Push day',

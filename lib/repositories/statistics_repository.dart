@@ -1,12 +1,17 @@
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 import 'package:virtus_app/data/database.dart';
 
 class SavedExercise {
-  const SavedExercise({required this.id, required this.name, this.category});
+  const SavedExercise({
+    required this.id,
+    required this.name,
+    required this.muscleGroup,
+  });
 
   final String id;
   final String name;
-  final String? category;
+  final String muscleGroup;
 }
 
 class SetProgress {
@@ -39,6 +44,10 @@ class WeeklyVolume {
 
 abstract class StatisticsRepository {
   Future<List<SavedExercise>> savedExercises();
+  Future<void> ensureTemplate({
+    required String name,
+    required String muscleGroup,
+  });
   Future<List<SetProgress>> exerciseHistory(String templateId);
   Future<List<WeeklyVolume>> weeklyVolume({int weeks = 12});
   Future<int> workoutsThisWeek();
@@ -58,9 +67,65 @@ class DriftStatisticsRepository implements StatisticsRepository {
               ..orderBy([(t) => OrderingTerm.asc(t.name)]))
             .get();
 
-    return rows
-        .map((r) => SavedExercise(id: r.id, name: r.name, category: r.category))
+    final items = rows
+        .map(
+          (r) => SavedExercise(
+            id: r.id,
+            name: r.name,
+            muscleGroup: r.category ?? 'Custom',
+          ),
+        )
         .toList();
+
+    items.sort((a, b) {
+      final group = a.muscleGroup.compareTo(b.muscleGroup);
+      return group != 0 ? group : a.name.compareTo(b.name);
+    });
+    return items;
+  }
+
+  @override
+  Future<void> ensureTemplate({
+    required String name,
+    required String muscleGroup,
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+
+    final normalized = trimmed.toLowerCase();
+    final existing =
+        await (_db.select(_db.exerciseTemplates)..where(
+              (t) => t.normalizedName.equals(normalized) & t.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+
+    if (existing != null) {
+      if (existing.category != muscleGroup) {
+        await (_db.update(
+          _db.exerciseTemplates,
+        )..where((t) => t.id.equals(existing.id))).write(
+          ExerciseTemplatesCompanion(
+            category: Value(muscleGroup),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+      }
+      return;
+    }
+
+    final now = DateTime.now();
+    await _db
+        .into(_db.exerciseTemplates)
+        .insert(
+          ExerciseTemplatesCompanion.insert(
+            id: const Uuid().v4(),
+            name: trimmed,
+            normalizedName: normalized,
+            category: Value(muscleGroup),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
   }
 
   @override
