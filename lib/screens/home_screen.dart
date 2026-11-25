@@ -196,12 +196,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: OutlinedButton.icon(
-                            key: const Key('save-as-routine-button'),
-                            icon: const Icon(Icons.bookmark_add),
-                            label: const Text('Save as routine'),
-                            onPressed: _saveAsRoutine,
-                          ),
+                          child: _controller.startedFromRoutine
+                              ? Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'From routine: '
+                                    '${_controller.sourceRoutineName}',
+                                    key: const Key('routine-source-label'),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                )
+                              : OutlinedButton.icon(
+                                  key: const Key('save-as-routine-button'),
+                                  icon: const Icon(Icons.bookmark_add),
+                                  label: const Text('Save as routine'),
+                                  onPressed: _saveAsRoutine,
+                                ),
                         ),
                       ],
                     ),

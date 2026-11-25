@@ -11,6 +11,10 @@ class WorkoutController extends ChangeNotifier {
   Workout _workout;
   final WorkoutRepository _repository;
   Timer? _saveTimer;
+  String? _sourceRoutineName;
+
+  bool get startedFromRoutine => _sourceRoutineName != null;
+  String? get sourceRoutineName => _sourceRoutineName;
 
   WorkoutController({Workout? workout, required this._repository})
     : _workout =
@@ -42,6 +46,7 @@ class WorkoutController extends ChangeNotifier {
   }
 
   void startRoutine(Routine routine) {
+    _sourceRoutineName = routine.name;
     _workout.name = routine.name;
     _workout.exercises = [
       for (final planned in routine.exercises)
@@ -126,6 +131,7 @@ class WorkoutController extends ChangeNotifier {
       date: DateTime.now(),
       exercises: [],
     );
+    _sourceRoutineName = null;
 
     try {
       await _repository.saveCurrent(_workout);

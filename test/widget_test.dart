@@ -10,7 +10,7 @@ import 'package:virtus_app/repositories/statistics_repository.dart';
 import 'package:virtus_app/widgets/today_plan_card.dart';
 
 void main() {
-  Future<void> pumpApp(WidgetTester tester) async {
+  Future<AppDatabase> pumpApp(WidgetTester tester) async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
@@ -23,6 +23,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    return database;
   }
 
   Future<void> openSection(WidgetTester tester, String section) async {
@@ -219,7 +220,8 @@ void main() {
   testWidgets('routine can be built with planned sets and started', (
     tester,
   ) async {
-    await pumpApp(tester);
+    final database = await pumpApp(tester);
+    final routineRepository = DriftRoutineRepository(database);
 
     await tester.tap(find.byKey(const Key('routines-button')));
     await tester.pumpAndSettle();
@@ -275,6 +277,27 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('2 sets'), findsOneWidget);
+    expect(find.byKey(const Key('save-as-routine-button')), findsNothing);
+    expect(find.text('From routine: Push day'), findsOneWidget);
+
+    final addSet = find.text('Add set');
+    await tester.ensureVisible(addSet);
+    await tester.pumpAndSettle();
+    await tester.tap(addSet);
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 sets'), findsOneWidget);
+
+    final savedRoutine = (await routineRepository.loadRoutines()).single;
+    expect(savedRoutine.name, 'Push day');
+    expect(savedRoutine.exercises.single.name, 'Barbell Bench Press');
+    expect(savedRoutine.exercises.single.setCount, 2);
+
+    await tester.tap(find.byKey(const Key('finish-workout-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('save-as-routine-button')), findsOneWidget);
+    expect(find.byKey(const Key('routine-source-label')), findsNothing);
   });
 
   testWidgets('current workout can be saved as a routine', (tester) async {
