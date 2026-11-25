@@ -132,6 +132,67 @@ void main() {
     expect(await stats.volumeThisWeek(), 60 * 8);
   });
 
+  test('weekly activity fills empty weeks for charts', () async {
+    final workout = sampleWorkout()..date = DateTime.now();
+    await repository.saveWorkout(workout);
+
+    final activity = await stats.weeklyActivity(weeks: 4);
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+
+    expect(activity, hasLength(4));
+    expect(
+      activity.last.weekStart,
+      DateTime(monday.year, monday.month, monday.day),
+    );
+    expect(activity.last.workouts, 1);
+    expect(activity.last.volume, 60 * 8 + 60 * 7);
+    expect(
+      activity.take(3).every((week) => week.workouts == 0 && week.volume == 0),
+      isTrue,
+    );
+  });
+
+  test('personal records keep the best set for each exercise', () async {
+    await repository.saveWorkout(
+      Workout(
+        name: 'Push day',
+        date: DateTime(2026, 11, 20),
+        exercises: [
+          Exercise(
+            name: 'Bench Press',
+            sets: [
+              WorkoutSet(weight: 100, reps: 2, rir: 1),
+              WorkoutSet(weight: 60, reps: 8, rir: 2),
+            ],
+          ),
+        ],
+      ),
+    );
+    await repository.saveWorkout(
+      Workout(
+        name: 'Push day again',
+        date: DateTime(2026, 11, 22),
+        exercises: [
+          Exercise(
+            name: 'Bench Press',
+            sets: [WorkoutSet(weight: 90, reps: 8, rir: 3)],
+          ),
+        ],
+      ),
+    );
+
+    final records = await stats.personalRecords();
+
+    expect(records, hasLength(1));
+    final record = records.single;
+    expect(record.exerciseName, 'Bench Press');
+    expect(record.bestWeight, 90);
+    expect(record.bestReps, 8);
+    expect(record.setCount, 3);
+    expect(record.bestOneRm, closeTo(90 * (1 + 8 / 30), 0.0001));
+  });
+
   test(
     'deleting a custom template hides it but keeps logged history',
     () async {

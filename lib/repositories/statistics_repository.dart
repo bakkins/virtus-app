@@ -42,6 +42,40 @@ class WeeklyVolume {
   final double volume;
 }
 
+class WeeklyActivity {
+  const WeeklyActivity({
+    required this.weekStart,
+    required this.workouts,
+    required this.volume,
+  });
+
+  final DateTime weekStart;
+  final int workouts;
+  final double volume;
+}
+
+class PersonalRecord {
+  const PersonalRecord({
+    required this.templateId,
+    required this.exerciseName,
+    required this.bestWeight,
+    required this.bestReps,
+    required this.bestRir,
+    required this.bestOneRm,
+    required this.date,
+    required this.setCount,
+  });
+
+  final String templateId;
+  final String exerciseName;
+  final double bestWeight;
+  final int bestReps;
+  final int bestRir;
+  final double bestOneRm;
+  final DateTime date;
+  final int setCount;
+}
+
 abstract class StatisticsRepository {
   Future<List<SavedExercise>> savedExercises();
   Future<void> ensureTemplate({
@@ -51,6 +85,8 @@ abstract class StatisticsRepository {
   Future<void> deleteTemplate(String id);
   Future<List<SetProgress>> exerciseHistory(String templateId);
   Future<List<WeeklyVolume>> weeklyVolume({int weeks = 12});
+  Future<List<WeeklyActivity>> weeklyActivity({int weeks = 12});
+  Future<List<PersonalRecord>> personalRecords();
   Future<int> workoutsThisWeek();
   Future<double> volumeThisWeek();
 }
@@ -213,6 +249,98 @@ class DriftStatisticsRepository implements StatisticsRepository {
         .map((entry) => WeeklyVolume(weekStart: entry.key, volume: entry.value))
         .toList()
       ..sort((a, b) => b.weekStart.compareTo(a.weekStart));
+  }
+
+  @override
+  Future<List<WeeklyActivity>> weeklyActivity({int weeks = 12}) async {
+    final count = weeks < 1 ? 1 : weeks;
+    final currentWeek = _startOfWeek(DateTime.now());
+    final cutoff = currentWeek.subtract(Duration(days: 7 * (count - 1)));
+
+    final workoutRows =
+        await (_db.select(_db.workouts)..where(
+              (w) =>
+                  w.status.equals('completed') &
+                  w.deletedAt.isNull() &
+                  w.date.isBiggerOrEqualValue(cutoff),
+            ))
+            .get();
+    final workoutCounts = <DateTime, int>{};
+    for (final row in workoutRows) {
+      final week = _startOfWeek(row.date);
+      workoutCounts[week] = (workoutCounts[week] ?? 0) + 1;
+    }
+
+    final query =
+        _db.select(_db.workoutSets).join([
+          innerJoin(
+            _db.exercises,
+            _db.exercises.id.equalsExp(_db.workoutSets.exerciseId),
+          ),
+          innerJoin(
+            _db.workouts,
+            _db.workouts.id.equalsExp(_db.exercises.workoutId),
+          ),
+        ])..where(
+          _db.workouts.status.equals('completed') &
+              _db.workouts.deletedAt.isNull() &
+              _db.workouts.date.isBiggerOrEqualValue(cutoff),
+        );
+    final rows = await query.get();
+    final volumes = <DateTime, double>{};
+    for (final row in rows) {
+      final set = row.readTable(_db.workoutSets);
+      final workout = row.readTable(_db.workouts);
+      final week = _startOfWeek(workout.date);
+      volumes[week] = (volumes[week] ?? 0) + set.weight * set.reps;
+    }
+
+    return List.generate(count, (index) {
+      final week = cutoff.add(Duration(days: 7 * index));
+      return WeeklyActivity(
+        weekStart: week,
+        workouts: workoutCounts[week] ?? 0,
+        volume: volumes[week] ?? 0,
+      );
+    });
+  }
+
+  @override
+  Future<List<PersonalRecord>> personalRecords() async {
+    final exercises = await savedExercises();
+    final records = <PersonalRecord>[];
+
+    for (final exercise in exercises) {
+      final history = await exerciseHistory(exercise.id);
+      final logged = history
+          .where((set) => set.weight > 0 && set.reps > 0)
+          .toList();
+      if (logged.isEmpty) continue;
+
+      final best = logged.reduce(
+        (a, b) => a.estimatedOneRm >= b.estimatedOneRm ? a : b,
+      );
+      records.add(
+        PersonalRecord(
+          templateId: exercise.id,
+          exerciseName: exercise.name,
+          bestWeight: best.weight,
+          bestReps: best.reps,
+          bestRir: best.rir,
+          bestOneRm: best.estimatedOneRm,
+          date: best.date,
+          setCount: logged.length,
+        ),
+      );
+    }
+
+    records.sort((a, b) {
+      final byRecord = b.bestOneRm.compareTo(a.bestOneRm);
+      return byRecord != 0
+          ? byRecord
+          : a.exerciseName.compareTo(b.exerciseName);
+    });
+    return records;
   }
 
   @override
