@@ -67,12 +67,32 @@ class WorkoutSets extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Workouts, ExerciseTemplates, Exercises, WorkoutSets])
+class AppSettings extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
+@DriftDatabase(
+  tables: [Workouts, ExerciseTemplates, Exercises, WorkoutSets, AppSettings],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(appSettings);
+      }
+    },
+  );
 
   static QueryExecutor _open() => driftDatabase(
     name: 'virtus_db',
