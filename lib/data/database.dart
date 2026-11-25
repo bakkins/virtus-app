@@ -75,14 +75,51 @@ class AppSettings extends Table {
   Set<Column> get primaryKey => {key};
 }
 
+class Routines extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@TableIndex(name: 'idx_routine_exercises_routine', columns: {#routineId})
+class RoutineExercises extends Table {
+  TextColumn get id => text()();
+  TextColumn get routineId =>
+      text().references(Routines, #id, onDelete: KeyAction.cascade)();
+  TextColumn get templateId => text().nullable().references(
+    ExerciseTemplates,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get name => text()();
+  IntColumn get position => integer()();
+  IntColumn get setCount => integer().withDefault(const Constant(1))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
-  tables: [Workouts, ExerciseTemplates, Exercises, WorkoutSets, AppSettings],
+  tables: [
+    Workouts,
+    ExerciseTemplates,
+    Exercises,
+    WorkoutSets,
+    AppSettings,
+    Routines,
+    RoutineExercises,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -90,6 +127,10 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         await m.createTable(appSettings);
+      }
+      if (from < 3) {
+        await m.createTable(routines);
+        await m.createTable(routineExercises);
       }
     },
   );
