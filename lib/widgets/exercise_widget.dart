@@ -24,28 +24,28 @@ class ExerciseWidget extends StatelessWidget {
   }
 
   Future<bool> _confirmDelete(BuildContext context) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Delete exercise?'),
-      content: Text('Delete "${exercise.name}" and all its sets?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete exercise?'),
+        content: Text('Delete "${exercise.name}" and all its sets?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
-  return confirmed ?? false;
-}
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,15 +86,21 @@ class ExerciseWidget extends StatelessWidget {
                 icon: const Icon(Icons.delete_outline),
                 color: colorScheme.error,
                 onPressed: () async {
-                  if (await _confirmDelete(context))
-                  {controller.removeExercise(index);}
+                  if (await _confirmDelete(context)) {
+                    controller.removeExercise(index);
+                  }
                 },
               ),
             ],
           ),
           const SizedBox(height: 12),
           for (int i = 0; i < sets.length; i++)
-            _setRow(colorScheme: colorScheme, setIndex: i, set: sets[i], context: context),
+            _setRow(
+              colorScheme: colorScheme,
+              setIndex: i,
+              set: sets[i],
+              context: context,
+            ),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
@@ -110,12 +116,14 @@ class ExerciseWidget extends StatelessWidget {
   }
 
   TextFormField _numberField({
+    required Key fieldKey,
     required String initial,
     required String label,
     required bool decimal,
     required ValueChanged<String> onChanged,
   }) {
     return TextFormField(
+      key: fieldKey,
       initialValue: initial,
       keyboardType: TextInputType.numberWithOptions(decimal: decimal),
       inputFormatters: [
@@ -137,7 +145,7 @@ class ExerciseWidget extends StatelessWidget {
     required ColorScheme colorScheme,
     required int setIndex,
     required WorkoutSet set,
-    required BuildContext context
+    required BuildContext context,
   }) {
     return Padding(
       key: ObjectKey(set),
@@ -154,6 +162,7 @@ class ExerciseWidget extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _numberField(
+              fieldKey: Key('weight-$index-$setIndex'),
               initial: set.weight == 0 ? '' : _weightText(set.weight),
               label: 'kg',
               decimal: true,
@@ -165,6 +174,7 @@ class ExerciseWidget extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _numberField(
+              fieldKey: Key('reps-$index-$setIndex'),
               initial: set.reps == 0 ? '' : set.reps.toString(),
               label: 'reps',
               decimal: false,
@@ -176,6 +186,7 @@ class ExerciseWidget extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _numberField(
+              fieldKey: Key('rir-$index-$setIndex'),
               initial: set.rir == 0 ? '' : set.rir.toString(),
               label: 'rir',
               decimal: false,
@@ -192,7 +203,9 @@ class ExerciseWidget extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             onPressed: () async {
               if (exercise.sets.length == 1) {
-                if (await _confirmDelete(context)) controller.removeExercise(index);
+                if (await _confirmDelete(context)) {
+                  controller.removeExercise(index);
+                }
               } else {
                 controller.removeSet(index, setIndex);
               }

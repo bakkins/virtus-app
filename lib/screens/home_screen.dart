@@ -235,7 +235,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               StatisticsView(
                 repository: widget.statisticsRepository,
+                settingsRepository: widget.settingsRepository,
                 revision: _exerciseRevision,
+                goalsRevision: _goalsRevision,
               ),
               SettingsScreen(
                 repository: widget.settingsRepository,

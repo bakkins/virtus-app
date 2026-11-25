@@ -215,6 +215,12 @@ void main() {
 
     expect(find.text('Volume'), findsOneWidget);
     expect(find.textContaining('1200 kg'), findsOneWidget);
+
+    await openSection(tester, 'statistics');
+
+    expect(find.text('Weekly goals'), findsOneWidget);
+    expect(find.text('0 / 5'), findsOneWidget);
+    expect(find.textContaining('/ 1200 kg'), findsOneWidget);
   });
 
   testWidgets('routine can be built with planned sets and started', (
@@ -334,5 +340,60 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('completed workout populates statistics overview', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('add-exercise-button')));
+    await tester.pumpAndSettle();
+    final pullUp = find.byKey(const Key('library-exercise-Pull-Up'));
+    await tester.ensureVisible(pullUp);
+    await tester.pumpAndSettle();
+    await tester.tap(pullUp);
+    await tester.pumpAndSettle();
+
+    final weight = find.byKey(const Key('weight-0-0'));
+    await tester.ensureVisible(weight);
+    await tester.pumpAndSettle();
+    await tester.enterText(weight, '50');
+    final reps = find.byKey(const Key('reps-0-0'));
+    await tester.ensureVisible(reps);
+    await tester.pumpAndSettle();
+    await tester.enterText(reps, '5');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('finish-workout-button')));
+    await tester.pumpAndSettle();
+
+    await openSection(tester, 'statistics');
+
+    expect(find.text('Workouts per week'), findsOneWidget);
+    expect(find.text('Volume per week (kg)'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('activity-workouts-value-11')))
+          .data,
+      '1',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('activity-volume-value-11')))
+          .data,
+      '250',
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Best set: 50 kg × 5'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('50 kg × 5 @ RIR 0'), findsOneWidget);
+    expect(find.textContaining("Today's workout"), findsOneWidget);
   });
 }

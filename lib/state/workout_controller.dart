@@ -11,6 +11,7 @@ class WorkoutController extends ChangeNotifier {
   Workout _workout;
   final WorkoutRepository _repository;
   Timer? _saveTimer;
+  Future<void>? _saveFuture;
   String? _sourceRoutineName;
 
   bool get startedFromRoutine => _sourceRoutineName != null;
@@ -30,7 +31,7 @@ class WorkoutController extends ChangeNotifier {
     notifyListeners();
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 400), () {
-      _repository.saveCurrent(_workout).catchError((_) {});
+      _saveFuture = _repository.saveCurrent(_workout).catchError((_) {});
     });
   }
 
@@ -121,6 +122,8 @@ class WorkoutController extends ChangeNotifier {
     _saveTimer?.cancel();
 
     try {
+      await _saveFuture;
+      await _repository.saveCurrent(_workout);
       await _repository.saveWorkout(_workout);
     } catch (_) {
       return false;
@@ -132,6 +135,7 @@ class WorkoutController extends ChangeNotifier {
       exercises: [],
     );
     _sourceRoutineName = null;
+    _saveFuture = null;
 
     try {
       await _repository.saveCurrent(_workout);
