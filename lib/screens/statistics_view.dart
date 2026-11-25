@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 
 class StatisticsView extends StatefulWidget {
-  const StatisticsView({super.key, required this.repository});
+  const StatisticsView({
+    super.key,
+    required this.repository,
+    this.revision = 0,
+  });
 
   final StatisticsRepository repository;
+  final int revision;
 
   @override
   State<StatisticsView> createState() => _StatisticsViewState();
@@ -19,14 +24,28 @@ class _StatisticsViewState extends State<StatisticsView> {
   @override
   void initState() {
     super.initState();
-    _saved = widget.repository.savedExercises();
     _weekly = widget.repository.weeklyVolume();
+    _load();
+  }
 
+  @override
+  void didUpdateWidget(StatisticsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revision != widget.revision ||
+        oldWidget.repository != widget.repository) {
+      _load();
+    }
+  }
+
+  void _load() {
+    _saved = widget.repository.savedExercises();
     _saved.then((items) {
-      if (items.isEmpty || !mounted) return;
+      if (!mounted) return;
       setState(() {
-        _selectedId = items.first.id;
-        _history = widget.repository.exerciseHistory(items.first.id);
+        _selectedId = items.isEmpty ? null : items.first.id;
+        _history = _selectedId == null
+            ? Future.value(const <SetProgress>[])
+            : widget.repository.exerciseHistory(_selectedId!);
       });
     });
   }

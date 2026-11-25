@@ -9,10 +9,12 @@ class WorkoutView extends StatefulWidget {
     super.key,
     required this.controller,
     required this.statisticsRepository,
+    required this.onTemplatesChanged,
   });
 
   final WorkoutController controller;
   final StatisticsRepository statisticsRepository;
+  final VoidCallback onTemplatesChanged;
 
   @override
   State<WorkoutView> createState() => _WorkoutViewState();
@@ -63,8 +65,10 @@ class _WorkoutViewState extends State<WorkoutView> {
   Future<void> _openAddExerciseSheet() async {
     final String? name = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) =>
-          AddExerciseBottomSheet(repository: widget.statisticsRepository),
+      builder: (context) => AddExerciseBottomSheet(
+        repository: widget.statisticsRepository,
+        onTemplatesChanged: widget.onTemplatesChanged,
+      ),
     );
     if (name == null || name.isEmpty) return;
     widget.controller.addExercise(name);

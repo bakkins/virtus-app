@@ -3,9 +3,14 @@ import 'package:virtus_app/data/exercise_library.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 
 class AddExerciseBottomSheet extends StatefulWidget {
-  const AddExerciseBottomSheet({super.key, required this.repository});
+  const AddExerciseBottomSheet({
+    super.key,
+    required this.repository,
+    this.onTemplatesChanged,
+  });
 
   final StatisticsRepository repository;
+  final VoidCallback? onTemplatesChanged;
 
   @override
   State<AddExerciseBottomSheet> createState() => _AddExerciseBottomSheetState();
@@ -16,7 +21,7 @@ class _AddExerciseBottomSheetState extends State<AddExerciseBottomSheet> {
 
   final TextEditingController _searchController = TextEditingController();
   String _selectedGroup = 'All';
-  late final Future<List<SavedExercise>> _saved;
+  late Future<List<SavedExercise>> _saved;
 
   @override
   void initState() {
@@ -52,7 +57,7 @@ class _AddExerciseBottomSheetState extends State<AddExerciseBottomSheet> {
         if (!catalogNames.contains(item.name.toLowerCase()) &&
             inGroup(item.muscleGroup) &&
             matches(item.name))
-          _ExerciseOption(item.name, item.muscleGroup, null),
+          _ExerciseOption(item.name, item.muscleGroup, null, item.id),
     ];
   }
 
@@ -62,7 +67,40 @@ class _AddExerciseBottomSheetState extends State<AddExerciseBottomSheet> {
       muscleGroup: muscleGroup,
     );
     if (!mounted) return;
+    widget.onTemplatesChanged?.call();
     Navigator.of(context).pop(name);
+  }
+
+  Future<void> _delete(_ExerciseOption option) async {
+    final id = option.id;
+    if (id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete exercise?'),
+        content: Text('Remove "${option.name}" from custom exercises?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    await widget.repository.deleteTemplate(id);
+    if (!mounted) return;
+
+    setState(() {
+      _saved = widget.repository.savedExercises();
+    });
+    widget.onTemplatesChanged?.call();
   }
 
   List<Widget> _listChildren(List<_ExerciseOption> options) {
@@ -82,7 +120,19 @@ class _AddExerciseBottomSheetState extends State<AddExerciseBottomSheet> {
             dense: true,
             title: Text(option.name),
             subtitle: option.detail == null ? null : Text(option.detail!),
-            trailing: const Icon(Icons.add, size: 18),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (option.id != null)
+                  IconButton(
+                    key: ValueKey('delete-custom-${option.name}'),
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    tooltip: 'Delete custom exercise',
+                    onPressed: () => _delete(option),
+                  ),
+                const Icon(Icons.add, size: 18),
+              ],
+            ),
             onTap: () => _select(option.name, option.muscleGroup),
           ),
         ),
@@ -175,11 +225,12 @@ class _AddExerciseBottomSheetState extends State<AddExerciseBottomSheet> {
 }
 
 class _ExerciseOption {
-  const _ExerciseOption(this.name, this.muscleGroup, this.detail);
+  const _ExerciseOption(this.name, this.muscleGroup, this.detail, [this.id]);
 
   final String name;
   final String muscleGroup;
   final String? detail;
+  final String? id;
 }
 
 class _GroupHeader extends StatelessWidget {

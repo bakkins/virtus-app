@@ -134,4 +134,40 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('custom exercises can be deleted from the picker', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('add-exercise-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('exercise-search-field')),
+      'My Lift',
+    );
+    await tester.pumpAndSettle();
+    final createButton = find.byKey(const Key('create-custom-exercise'));
+    await tester.ensureVisible(createButton);
+    await tester.pumpAndSettle();
+    await tester.tap(createButton);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('add-exercise-button')));
+    await tester.pumpAndSettle();
+
+    final deleteButton = find.byKey(const Key('delete-custom-My Lift'));
+    expect(deleteButton, findsOneWidget);
+    await tester.ensureVisible(deleteButton);
+    await tester.pumpAndSettle();
+    await tester.tap(deleteButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete exercise?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(deleteButton, findsNothing);
+    expect(find.byKey(const Key('muscle-header-Custom')), findsNothing);
+  });
 }

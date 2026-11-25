@@ -30,6 +30,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   HomeSection _section = HomeSection.home;
   int _goalsRevision = 0;
+  int _exerciseRevision = 0;
 
   late final WorkoutController _controller = WorkoutController(
     workout: widget.initialWorkout,
@@ -38,6 +39,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _selectSection(HomeSection section) {
     setState(() => _section = section);
+  }
+
+  void _templatesChanged() {
+    if (!mounted) return;
+    setState(() => _exerciseRevision++);
   }
 
   Future<void> _finishWorkout() async {
@@ -90,11 +96,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: WorkoutView(
                       controller: _controller,
                       statisticsRepository: widget.statisticsRepository,
+                      onTemplatesChanged: _templatesChanged,
                     ),
                   ),
                 ],
               ),
-              StatisticsView(repository: widget.statisticsRepository),
+              StatisticsView(
+                repository: widget.statisticsRepository,
+                revision: _exerciseRevision,
+              ),
               const SettingsScreen(),
             ],
           ),

@@ -48,6 +48,7 @@ abstract class StatisticsRepository {
     required String name,
     required String muscleGroup,
   });
+  Future<void> deleteTemplate(String id);
   Future<List<SetProgress>> exerciseHistory(String templateId);
   Future<List<WeeklyVolume>> weeklyVolume({int weeks = 12});
   Future<int> workoutsThisWeek();
@@ -126,6 +127,16 @@ class DriftStatisticsRepository implements StatisticsRepository {
             updatedAt: now,
           ),
         );
+  }
+
+  @override
+  Future<void> deleteTemplate(String id) async {
+    final now = DateTime.now();
+    await (_db.update(
+      _db.exerciseTemplates,
+    )..where((t) => t.id.equals(id))).write(
+      ExerciseTemplatesCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
   }
 
   @override

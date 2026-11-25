@@ -123,4 +123,30 @@ void main() {
     expect(await stats.workoutsThisWeek(), 1);
     expect(await stats.volumeThisWeek(), 60 * 8);
   });
+
+  test(
+    'deleting a custom template hides it but keeps logged history',
+    () async {
+      await stats.ensureTemplate(name: 'My Lift', muscleGroup: 'Custom');
+      final created = (await stats.savedExercises()).single;
+
+      await repository.saveWorkout(
+        Workout(
+          name: 'Push day',
+          date: DateTime.now(),
+          exercises: [
+            Exercise(
+              name: 'My Lift',
+              sets: [WorkoutSet(weight: 40, reps: 10, rir: 2)],
+            ),
+          ],
+        ),
+      );
+
+      await stats.deleteTemplate(created.id);
+
+      expect(await stats.savedExercises(), isEmpty);
+      expect(await stats.exerciseHistory(created.id), hasLength(1));
+    },
+  );
 }
