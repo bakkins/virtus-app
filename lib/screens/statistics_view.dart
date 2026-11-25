@@ -75,6 +75,122 @@ class _StatisticsViewState extends State<StatisticsView> {
     });
   }
 
+  void _refreshRecords() {
+    if (!mounted) return;
+    setState(() {
+      _records = widget.repository.personalRecords();
+    });
+  }
+
+  Future<void> _setPrMetric(String templateId, int repCount) async {
+    await widget.repository.setExercisePrRepCount(templateId, repCount);
+    _refreshRecords();
+  }
+
+  Future<void> _logPr(String templateId, int initialRepCount) async {
+    final input = await showDialog<({int repCount, double weight})>(
+      context: context,
+      builder: (context) => _ManualPrDialog(initialRepCount: initialRepCount),
+    );
+    if (input == null) return;
+
+    await widget.repository.addManualPr(
+      templateId: templateId,
+      repCount: input.repCount,
+      weight: input.weight,
+    );
+    _refreshRecords();
+  }
+
+  Future<void> _removeManualPr(String id) async {
+    await widget.repository.deleteManualPr(id);
+    _refreshRecords();
+  }
+
+  Widget _buildPrCard(
+    BuildContext context,
+    int index,
+    PersonalRecord record,
+    TextTheme textTheme,
+  ) {
+    final manual = record.manualPr;
+
+    return Card(
+      key: ValueKey('personal-record-${record.templateId}'),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    record.exerciseName,
+                    style: textTheme.titleMedium,
+                  ),
+                ),
+                ChoiceChip(
+                  key: ValueKey('pr-metric-1-$index'),
+                  label: const Text('1RM'),
+                  selected: record.repCount == 1,
+                  onSelected: (_) => _setPrMetric(record.templateId, 1),
+                ),
+                const SizedBox(width: 4),
+                ChoiceChip(
+                  key: ValueKey('pr-metric-5-$index'),
+                  label: const Text('5RM'),
+                  selected: record.repCount == 5,
+                  onSelected: (_) => _setPrMetric(record.templateId, 5),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Best set: ${_format(record.bestWeight)} kg × '
+              '${record.bestReps} @ RIR ${record.bestRir}',
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${_format(record.bestValue)} kg ${record.metricLabel} '
+              '(estimated) · ${_date(record.date)} · '
+              '${record.setCount} sets logged',
+              style: textTheme.bodySmall,
+            ),
+            if (manual != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Manual ${manual.repCount}RM: '
+                      '${_format(manual.weight)} kg · ${_date(manual.date)}',
+                    ),
+                  ),
+                  IconButton(
+                    key: ValueKey('delete-pr-button-$index'),
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Delete manual PR',
+                    onPressed: () => _removeManualPr(manual.id),
+                  ),
+                ],
+              ),
+            ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                key: ValueKey('log-pr-button-$index'),
+                icon: const Icon(Icons.add),
+                label: const Text('Log PR'),
+                onPressed: () => _logPr(record.templateId, record.repCount),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _format(double value) =>
       value % 1 == 0 ? value.toInt().toString() : value.toStringAsFixed(1);
 
@@ -154,34 +270,8 @@ class _StatisticsViewState extends State<StatisticsView> {
 
                 return Column(
                   children: [
-                    for (final record in records)
-                      Card(
-                        key: ValueKey('personal-record-${record.templateId}'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                record.exerciseName,
-                                style: textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Best set: ${_format(record.bestWeight)} kg × '
-                                '${record.bestReps} @ RIR ${record.bestRir}',
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_format(record.bestOneRm)} kg e1RM · '
-                                '${_date(record.date)} · '
-                                '${record.setCount} sets logged',
-                                style: textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    for (final entry in records.asMap().entries)
+                      _buildPrCard(context, entry.key, entry.value, textTheme),
                   ],
                 );
               },
@@ -248,6 +338,92 @@ class _StatisticsViewState extends State<StatisticsView> {
           ],
         );
       },
+    );
+  }
+}
+
+class _ManualPrDialog extends StatefulWidget {
+  const _ManualPrDialog({required this.initialRepCount});
+
+  final int initialRepCount;
+
+  @override
+  State<_ManualPrDialog> createState() => _ManualPrDialogState();
+}
+
+class _ManualPrDialogState extends State<_ManualPrDialog> {
+  late int _repCount = widget.initialRepCount == 5 ? 5 : 1;
+  final TextEditingController _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final weight = double.tryParse(_controller.text.trim());
+    if (weight == null || weight <= 0) {
+      setState(() => _error = 'Enter a weight greater than zero');
+      return;
+    }
+    Navigator.of(context).pop((repCount: _repCount, weight: weight));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Log PR'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ChoiceChip(
+                key: const Key('manual-pr-reps-1'),
+                label: const Text('1RM'),
+                selected: _repCount == 1,
+                onSelected: (_) => setState(() => _repCount = 1),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                key: const Key('manual-pr-reps-5'),
+                label: const Text('5RM'),
+                selected: _repCount == 5,
+                onSelected: (_) => setState(() => _repCount = 5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('manual-pr-weight-field'),
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Weight (kg)',
+              errorText: _error,
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const Key('manual-pr-save'),
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

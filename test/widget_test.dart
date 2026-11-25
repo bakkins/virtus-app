@@ -390,6 +390,29 @@ void main() {
 
     expect(find.textContaining('Best set: 50 kg × 5'), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('pr-metric-5-0')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('kg 5RM (estimated)'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('log-pr-button-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('manual-pr-reps-5')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('manual-pr-weight-field')),
+      '120',
+    );
+    await tester.tap(find.byKey(const Key('manual-pr-save')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Manual 5RM: 120 kg'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('delete-pr-button-0')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Manual 5RM: 120 kg'), findsNothing);
+
     await tester.drag(find.byType(ListView), const Offset(0, -400));
     await tester.pumpAndSettle();
 
