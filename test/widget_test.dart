@@ -5,6 +5,7 @@ import 'package:virtus_app/data/database.dart';
 import 'package:virtus_app/main.dart';
 import 'package:virtus_app/repositories/drift_workout_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
+import 'package:virtus_app/widgets/today_plan_card.dart';
 
 void main() {
   Future<void> pumpApp(WidgetTester tester) async {
@@ -70,5 +71,67 @@ void main() {
 
     expect(find.byKey(const Key('history-button')), findsNothing);
     expect(find.byKey(const Key('finish-workout-button')), findsNothing);
+  });
+
+  testWidgets('exercise library picker adds an exercise without typing', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('add-exercise-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('exercise-search-field')), findsOneWidget);
+    expect(find.byKey(const Key('muscle-chip-Chest')), findsOneWidget);
+    expect(find.byKey(const Key('muscle-header-Chest')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('muscle-chip-Back')));
+    await tester.pumpAndSettle();
+
+    final pullUp = find.byKey(const Key('library-exercise-Pull-Up'));
+    expect(pullUp, findsOneWidget);
+    expect(
+      find.byKey(const Key('library-exercise-Barbell Bench Press')),
+      findsNothing,
+    );
+
+    await tester.ensureVisible(pullUp);
+    await tester.pumpAndSettle();
+    await tester.tap(pullUp);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(TodayPlanCard),
+        matching: find.text('Pull-Up'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('1 set'), findsOneWidget);
+  });
+
+  testWidgets('custom exercise can still be created', (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('add-exercise-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('exercise-search-field')),
+      'My Lift',
+    );
+    await tester.pumpAndSettle();
+    final createButton = find.byKey(const Key('create-custom-exercise'));
+    await tester.ensureVisible(createButton);
+    await tester.pumpAndSettle();
+    await tester.tap(createButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(TodayPlanCard),
+        matching: find.text('My Lift'),
+      ),
+      findsOneWidget,
+    );
   });
 }

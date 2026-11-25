@@ -69,7 +69,17 @@ class _StatisticsViewState extends State<StatisticsView> {
                   .map(
                     (e) => DropdownMenuItem<String>(
                       value: e.id,
-                      child: Text(e.name),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(e.name),
+                          Text(
+                            e.muscleGroup,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                   .toList(),
