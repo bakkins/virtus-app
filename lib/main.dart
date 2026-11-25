@@ -4,7 +4,7 @@ import 'package:virtus_app/models/workout.dart';
 import 'package:virtus_app/repositories/drift_workout_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 import 'package:virtus_app/repositories/workout_repository.dart';
-import 'package:virtus_app/screens/workout_screen.dart';
+import 'package:virtus_app/screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +38,7 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: WorkoutScreen(
+      home: HomeScreen(
         repository: repository,
         statisticsRepository: statisticsRepository,
         initialWorkout: initialWorkout,

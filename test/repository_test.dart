@@ -89,4 +89,21 @@ void main() {
     expect(weekly, hasLength(1));
     expect(weekly.single.volume, 60 * 8 + 60 * 7);
   });
+
+  test('weekly goal queries use this week completed workouts', () async {
+    final workout = Workout(
+      name: 'Push day',
+      date: DateTime.now(),
+      exercises: [
+        Exercise(
+          name: 'Bench Press',
+          sets: [WorkoutSet(weight: 60, reps: 8, rir: 2)],
+        ),
+      ],
+    );
+    await repository.saveWorkout(workout);
+
+    expect(await stats.workoutsThisWeek(), 1);
+    expect(await stats.volumeThisWeek(), 60 * 8);
+  });
 }

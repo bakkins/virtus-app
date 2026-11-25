@@ -41,6 +41,8 @@ abstract class StatisticsRepository {
   Future<List<SavedExercise>> savedExercises();
   Future<List<SetProgress>> exerciseHistory(String templateId);
   Future<List<WeeklyVolume>> weeklyVolume({int weeks = 12});
+  Future<int> workoutsThisWeek();
+  Future<double> volumeThisWeek();
 }
 
 class DriftStatisticsRepository implements StatisticsRepository {
@@ -135,6 +137,46 @@ class DriftStatisticsRepository implements StatisticsRepository {
         .map((entry) => WeeklyVolume(weekStart: entry.key, volume: entry.value))
         .toList()
       ..sort((a, b) => b.weekStart.compareTo(a.weekStart));
+  }
+
+  @override
+  Future<int> workoutsThisWeek() async {
+    final start = _startOfWeek(DateTime.now());
+    final rows =
+        await (_db.select(_db.workouts)..where(
+              (w) =>
+                  w.status.equals('completed') &
+                  w.deletedAt.isNull() &
+                  w.date.isBiggerOrEqualValue(start),
+            ))
+            .get();
+    return rows.length;
+  }
+
+  @override
+  Future<double> volumeThisWeek() async {
+    final start = _startOfWeek(DateTime.now());
+    final query =
+        _db.select(_db.workoutSets).join([
+          innerJoin(
+            _db.exercises,
+            _db.exercises.id.equalsExp(_db.workoutSets.exerciseId),
+          ),
+          innerJoin(
+            _db.workouts,
+            _db.workouts.id.equalsExp(_db.exercises.workoutId),
+          ),
+        ])..where(
+          _db.workouts.status.equals('completed') &
+              _db.workouts.deletedAt.isNull() &
+              _db.workouts.date.isBiggerOrEqualValue(start),
+        );
+
+    final rows = await query.get();
+    return rows.fold<double>(0, (total, row) {
+      final set = row.readTable(_db.workoutSets);
+      return total + set.weight * set.reps;
+    });
   }
 
   DateTime _startOfWeek(DateTime date) {
