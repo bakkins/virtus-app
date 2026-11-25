@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:virtus_app/models/workout.dart';
+import 'package:virtus_app/repositories/settings_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 import 'package:virtus_app/repositories/workout_repository.dart';
 import 'package:virtus_app/screens/history_screen.dart';
@@ -16,11 +17,13 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.statisticsRepository,
+    required this.settingsRepository,
     this.initialWorkout,
   });
 
   final WorkoutRepository repository;
   final StatisticsRepository statisticsRepository;
+  final SettingsRepository settingsRepository;
   final Workout? initialWorkout;
 
   @override
@@ -44,6 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _templatesChanged() {
     if (!mounted) return;
     setState(() => _exerciseRevision++);
+  }
+
+  void _goalsChanged() {
+    if (!mounted) return;
+    setState(() => _goalsRevision++);
   }
 
   Future<void> _finishWorkout() async {
@@ -90,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   GoalsDashboard(
                     repository: widget.statisticsRepository,
+                    settingsRepository: widget.settingsRepository,
                     revision: _goalsRevision,
                   ),
                   Expanded(
@@ -105,7 +114,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 repository: widget.statisticsRepository,
                 revision: _exerciseRevision,
               ),
-              const SettingsScreen(),
+              SettingsScreen(
+                repository: widget.settingsRepository,
+                onGoalsSaved: _goalsChanged,
+              ),
             ],
           ),
         );

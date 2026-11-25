@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:virtus_app/data/database.dart';
 import 'package:virtus_app/main.dart';
 import 'package:virtus_app/repositories/drift_workout_repository.dart';
+import 'package:virtus_app/repositories/settings_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 import 'package:virtus_app/widgets/today_plan_card.dart';
 
@@ -16,8 +17,16 @@ void main() {
       MainApp(
         repository: DriftWorkoutRepository(database),
         statisticsRepository: DriftStatisticsRepository(database),
+        settingsRepository: DriftSettingsRepository(database),
       ),
     );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> openSection(WidgetTester tester, String section) async {
+    await tester.tap(find.byKey(const Key('section-menu-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('section-$section')));
     await tester.pumpAndSettle();
   }
 
@@ -28,6 +37,8 @@ void main() {
     expect(find.text("Today's plan"), findsOneWidget);
     expect(find.text('Weekly goals'), findsOneWidget);
     expect(find.text('Tap + to add your first exercise'), findsOneWidget);
+    expect(find.text('Completed workouts'), findsOneWidget);
+    expect(find.text('0 / 3'), findsOneWidget);
   });
 
   testWidgets('app bar menu switches sections', (tester) async {
@@ -169,5 +180,37 @@ void main() {
 
     expect(deleteButton, findsNothing);
     expect(find.byKey(const Key('muscle-header-Custom')), findsNothing);
+  });
+
+  testWidgets('weekly goals can be edited in settings', (tester) async {
+    await pumpApp(tester);
+
+    await openSection(tester, 'settings');
+    await tester.enterText(find.byKey(const Key('workouts-goal-field')), '5');
+
+    final saveButton = find.byKey(const Key('save-goals-button'));
+    await tester.ensureVisible(saveButton);
+    await tester.pumpAndSettle();
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Weekly goals saved'), findsOneWidget);
+
+    await openSection(tester, 'home');
+
+    expect(find.text('0 / 5'), findsOneWidget);
+    expect(find.text('Volume'), findsNothing);
+
+    await openSection(tester, 'settings');
+    await tester.enterText(find.byKey(const Key('volume-goal-field')), '1200');
+    await tester.ensureVisible(saveButton);
+    await tester.pumpAndSettle();
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    await openSection(tester, 'home');
+
+    expect(find.text('Volume'), findsOneWidget);
+    expect(find.textContaining('1200 kg'), findsOneWidget);
   });
 }

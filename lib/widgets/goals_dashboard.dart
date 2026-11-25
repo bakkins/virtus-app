@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:virtus_app/models/weekly_goals.dart';
+import 'package:virtus_app/repositories/settings_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 
 class GoalsDashboard extends StatefulWidget {
   const GoalsDashboard({
     super.key,
     required this.repository,
+    required this.settingsRepository,
     this.revision = 0,
   });
 
   final StatisticsRepository repository;
+  final SettingsRepository settingsRepository;
   final int revision;
 
   @override
@@ -16,9 +20,7 @@ class GoalsDashboard extends StatefulWidget {
 }
 
 class _GoalsDashboardState extends State<GoalsDashboard> {
-  static const int workoutGoal = 3;
-  static const double volumeGoal = 5000;
-
+  WeeklyGoals _goals = WeeklyGoals.defaultGoals;
   int _workouts = 0;
   double _volume = 0;
   bool _loading = true;
@@ -33,17 +35,20 @@ class _GoalsDashboardState extends State<GoalsDashboard> {
   void didUpdateWidget(GoalsDashboard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.revision != widget.revision ||
-        oldWidget.repository != widget.repository) {
+        oldWidget.repository != widget.repository ||
+        oldWidget.settingsRepository != widget.settingsRepository) {
       _load();
     }
   }
 
   Future<void> _load() async {
     try {
+      final goals = await widget.settingsRepository.loadGoals();
       final workouts = await widget.repository.workoutsThisWeek();
       final volume = await widget.repository.volumeThisWeek();
       if (!mounted) return;
       setState(() {
+        _goals = goals;
         _workouts = workouts;
         _volume = volume;
         _loading = false;
@@ -54,12 +59,15 @@ class _GoalsDashboardState extends State<GoalsDashboard> {
     }
   }
 
-  double _progress(double current, double goal) =>
-      (current / goal).clamp(0.0, 1.0).toDouble();
+  double _progress(double current, double goal) {
+    if (goal <= 0) return 0;
+    return (current / goal).clamp(0.0, 1.0).toDouble();
+  }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final volumeGoal = _goals.volume;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -78,21 +86,23 @@ class _GoalsDashboardState extends State<GoalsDashboard> {
             const SizedBox(height: 12),
             _ProgressRow(
               icon: Icons.fitness_center,
-              label: 'Workouts',
-              display: '$_workouts / $workoutGoal',
+              label: 'Completed workouts',
+              display: '$_workouts / ${_goals.workouts}',
               progress: _loading
                   ? 0
-                  : _progress(_workouts.toDouble(), workoutGoal.toDouble()),
+                  : _progress(_workouts.toDouble(), _goals.workouts.toDouble()),
             ),
-            const SizedBox(height: 12),
-            _ProgressRow(
-              icon: Icons.monitor_weight,
-              label: 'Volume',
-              display:
-                  '${_volume.toStringAsFixed(0)} / '
-                  '${volumeGoal.toStringAsFixed(0)} kg',
-              progress: _loading ? 0 : _progress(_volume, volumeGoal),
-            ),
+            if (volumeGoal != null) ...[
+              const SizedBox(height: 12),
+              _ProgressRow(
+                icon: Icons.monitor_weight,
+                label: 'Volume',
+                display:
+                    '${_volume.toStringAsFixed(0)} / '
+                    '${volumeGoal.toStringAsFixed(0)} kg',
+                progress: _loading ? 0 : _progress(_volume, volumeGoal),
+              ),
+            ],
           ],
         ),
       ),

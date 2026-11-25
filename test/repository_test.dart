@@ -2,15 +2,18 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:virtus_app/data/database.dart' as db;
 import 'package:virtus_app/models/exercise.dart';
+import 'package:virtus_app/models/weekly_goals.dart';
 import 'package:virtus_app/models/workout.dart';
 import 'package:virtus_app/models/workout_set.dart';
 import 'package:virtus_app/repositories/drift_workout_repository.dart';
+import 'package:virtus_app/repositories/settings_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 
 void main() {
   late db.AppDatabase database;
   late DriftWorkoutRepository repository;
   late DriftStatisticsRepository stats;
+  late DriftSettingsRepository settings;
 
   Workout sampleWorkout() => Workout(
     name: 'Push day',
@@ -30,6 +33,7 @@ void main() {
     database = db.AppDatabase(NativeDatabase.memory());
     repository = DriftWorkoutRepository(database);
     stats = DriftStatisticsRepository(database);
+    settings = DriftSettingsRepository(database);
   });
 
   tearDown(() async {
@@ -149,4 +153,44 @@ void main() {
       expect(await stats.exerciseHistory(created.id), hasLength(1));
     },
   );
+
+  test(
+    'weekly goals default to three workouts without a volume goal',
+    () async {
+      final goals = await settings.loadGoals();
+
+      expect(goals.workouts, 3);
+      expect(goals.volume, isNull);
+    },
+  );
+
+  test('weekly goals persist and an empty volume clears the goal', () async {
+    await settings.saveGoals(const WeeklyGoals(workouts: 5, volume: 1200));
+
+    final saved = await settings.loadGoals();
+    expect(saved.workouts, 5);
+    expect(saved.volume, 1200);
+
+    await settings.saveGoals(const WeeklyGoals(workouts: 2));
+
+    final cleared = await settings.loadGoals();
+    expect(cleared.workouts, 2);
+    expect(cleared.volume, isNull);
+  });
+
+  test('invalid stored goals fall back to defaults', () async {
+    await database
+        .into(database.appSettings)
+        .insert(
+          db.AppSettingsCompanion.insert(
+            key: 'weekly_workouts_goal',
+            value: 'not a number',
+          ),
+        );
+
+    final goals = await settings.loadGoals();
+
+    expect(goals.workouts, 3);
+    expect(goals.volume, isNull);
+  });
 }
