@@ -54,6 +54,22 @@ class WeeklyActivity {
   final double volume;
 }
 
+class ManualPr {
+  const ManualPr({
+    required this.id,
+    required this.templateId,
+    required this.repCount,
+    required this.weight,
+    required this.date,
+  });
+
+  final String id;
+  final String templateId;
+  final int repCount;
+  final double weight;
+  final DateTime date;
+}
+
 class PersonalRecord {
   const PersonalRecord({
     required this.templateId,
@@ -62,8 +78,12 @@ class PersonalRecord {
     required this.bestReps,
     required this.bestRir,
     required this.bestOneRm,
+    required this.bestFiveRm,
+    required this.repCount,
+    required this.bestValue,
     required this.date,
     required this.setCount,
+    this.manualPr,
   });
 
   final String templateId;
@@ -72,8 +92,14 @@ class PersonalRecord {
   final int bestReps;
   final int bestRir;
   final double bestOneRm;
+  final double bestFiveRm;
+  final int repCount;
+  final double bestValue;
   final DateTime date;
   final int setCount;
+  final ManualPr? manualPr;
+
+  String get metricLabel => repCount == 1 ? '1RM' : '5RM';
 }
 
 abstract class StatisticsRepository {
@@ -87,6 +113,15 @@ abstract class StatisticsRepository {
   Future<List<WeeklyVolume>> weeklyVolume({int weeks = 12});
   Future<List<WeeklyActivity>> weeklyActivity({int weeks = 12});
   Future<List<PersonalRecord>> personalRecords();
+  Future<int> exercisePrRepCount(String templateId);
+  Future<void> setExercisePrRepCount(String templateId, int repCount);
+  Future<List<ManualPr>> manualPrs(String templateId);
+  Future<ManualPr> addManualPr({
+    required String templateId,
+    required int repCount,
+    required double weight,
+  });
+  Future<void> deleteManualPr(String id);
   Future<int> workoutsThisWeek();
   Future<double> volumeThisWeek();
 }
@@ -317,9 +352,21 @@ class DriftStatisticsRepository implements StatisticsRepository {
           .toList();
       if (logged.isEmpty) continue;
 
+      final repCount = await exercisePrRepCount(exercise.id);
+      final prs = await manualPrs(exercise.id);
+      ManualPr? manual;
+      for (final pr in prs) {
+        if (pr.repCount == repCount &&
+            (manual == null || pr.weight > manual.weight)) {
+          manual = pr;
+        }
+      }
+
       final best = logged.reduce(
         (a, b) => a.estimatedOneRm >= b.estimatedOneRm ? a : b,
       );
+      final oneRm = best.estimatedOneRm;
+      final fiveRm = oneRm / (1 + 5 / 30.0);
       records.add(
         PersonalRecord(
           templateId: exercise.id,
@@ -327,20 +374,94 @@ class DriftStatisticsRepository implements StatisticsRepository {
           bestWeight: best.weight,
           bestReps: best.reps,
           bestRir: best.rir,
-          bestOneRm: best.estimatedOneRm,
+          bestOneRm: oneRm,
+          bestFiveRm: fiveRm,
+          repCount: repCount,
+          bestValue: repCount == 1 ? oneRm : fiveRm,
           date: best.date,
           setCount: logged.length,
+          manualPr: manual,
         ),
       );
     }
 
     records.sort((a, b) {
-      final byRecord = b.bestOneRm.compareTo(a.bestOneRm);
+      final byRecord = b.bestValue.compareTo(a.bestValue);
       return byRecord != 0
           ? byRecord
           : a.exerciseName.compareTo(b.exerciseName);
     });
     return records;
+  }
+
+  @override
+  Future<int> exercisePrRepCount(String templateId) async {
+    final row = await (_db.select(
+      _db.exerciseTemplates,
+    )..where((t) => t.id.equals(templateId))).getSingleOrNull();
+    final stored = row?.prRepCount ?? 1;
+    return stored == 5 ? 5 : 1;
+  }
+
+  @override
+  Future<void> setExercisePrRepCount(String templateId, int repCount) async {
+    final normalized = repCount == 5 ? 5 : 1;
+    await (_db.update(_db.exerciseTemplates)
+          ..where((t) => t.id.equals(templateId)))
+        .write(ExerciseTemplatesCompanion(prRepCount: Value(normalized)));
+  }
+
+  @override
+  Future<List<ManualPr>> manualPrs(String templateId) async {
+    final rows =
+        await (_db.select(_db.exercisePrs)
+              ..where((p) => p.templateId.equals(templateId))
+              ..orderBy([(p) => OrderingTerm.desc(p.date)]))
+            .get();
+
+    return rows
+        .map(
+          (row) => ManualPr(
+            id: row.id,
+            templateId: row.templateId,
+            repCount: row.repCount,
+            weight: row.weight,
+            date: row.date,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<ManualPr> addManualPr({
+    required String templateId,
+    required int repCount,
+    required double weight,
+  }) async {
+    final pr = ManualPr(
+      id: const Uuid().v4(),
+      templateId: templateId,
+      repCount: repCount == 5 ? 5 : 1,
+      weight: weight,
+      date: DateTime.now(),
+    );
+    await _db
+        .into(_db.exercisePrs)
+        .insert(
+          ExercisePrsCompanion.insert(
+            id: pr.id,
+            templateId: pr.templateId,
+            repCount: pr.repCount,
+            weight: pr.weight,
+            date: pr.date,
+          ),
+        );
+    return pr;
+  }
+
+  @override
+  Future<void> deleteManualPr(String id) async {
+    await (_db.delete(_db.exercisePrs)..where((p) => p.id.equals(id))).go();
   }
 
   @override

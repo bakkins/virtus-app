@@ -193,6 +193,60 @@ void main() {
     expect(record.bestOneRm, closeTo(90 * (1 + 8 / 30), 0.0001));
   });
 
+  test('PR metric and manual entries are stored per exercise', () async {
+    await repository.saveWorkout(
+      Workout(
+        name: 'Push day',
+        date: DateTime(2026, 11, 20),
+        exercises: [
+          Exercise(
+            name: 'Bench Press',
+            sets: [WorkoutSet(weight: 100, reps: 2, rir: 1)],
+          ),
+        ],
+      ),
+    );
+    final template = (await stats.savedExercises()).single;
+
+    expect(await stats.exercisePrRepCount(template.id), 1);
+
+    await stats.setExercisePrRepCount(template.id, 5);
+    final fiveRm = await stats.addManualPr(
+      templateId: template.id,
+      repCount: 5,
+      weight: 90,
+    );
+    final oneRm = await stats.addManualPr(
+      templateId: template.id,
+      repCount: 1,
+      weight: 110,
+    );
+
+    expect(await stats.exercisePrRepCount(template.id), 5);
+
+    final fiveRecord = (await stats.personalRecords()).single;
+    expect(fiveRecord.repCount, 5);
+    expect(fiveRecord.metricLabel, '5RM');
+    expect(
+      fiveRecord.bestValue,
+      closeTo(100 * (1 + 2 / 30) / (1 + 5 / 30), 0.0001),
+    );
+    expect(fiveRecord.manualPr?.id, fiveRm.id);
+    expect(fiveRecord.manualPr?.weight, 90);
+
+    await stats.setExercisePrRepCount(template.id, 1);
+
+    final oneRecord = (await stats.personalRecords()).single;
+    expect(oneRecord.metricLabel, '1RM');
+    expect(oneRecord.manualPr?.id, oneRm.id);
+
+    await stats.deleteManualPr(fiveRm.id);
+
+    final remaining = await stats.manualPrs(template.id);
+    expect(remaining.map((pr) => pr.id), contains(oneRm.id));
+    expect(remaining.map((pr) => pr.id), isNot(contains(fiveRm.id)));
+  });
+
   test(
     'deleting a custom template hides it but keeps logged history',
     () async {

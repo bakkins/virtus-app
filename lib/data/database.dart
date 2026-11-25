@@ -28,6 +28,7 @@ class ExerciseTemplates extends Table {
   TextColumn get name => text()();
   TextColumn get normalizedName => text()();
   TextColumn get category => text().nullable()();
+  IntColumn get prRepCount => integer().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -104,6 +105,19 @@ class RoutineExercises extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@TableIndex(name: 'idx_exercise_prs_template', columns: {#templateId})
+class ExercisePrs extends Table {
+  TextColumn get id => text()();
+  TextColumn get templateId =>
+      text().references(ExerciseTemplates, #id, onDelete: KeyAction.cascade)();
+  IntColumn get repCount => integer()();
+  RealColumn get weight => real()();
+  DateTimeColumn get date => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Workouts,
@@ -113,13 +127,14 @@ class RoutineExercises extends Table {
     AppSettings,
     Routines,
     RoutineExercises,
+    ExercisePrs,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -134,6 +149,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await m.createTable(routines);
         await m.createTable(routineExercises);
+      }
+      if (from < 4) {
+        await m.addColumn(exerciseTemplates, exerciseTemplates.prRepCount);
+        await m.createTable(exercisePrs);
       }
     },
   );
