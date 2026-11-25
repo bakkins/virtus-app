@@ -2,10 +2,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:virtus_app/data/database.dart' as db;
 import 'package:virtus_app/models/exercise.dart';
+import 'package:virtus_app/models/routine.dart';
 import 'package:virtus_app/models/weekly_goals.dart';
 import 'package:virtus_app/models/workout.dart';
 import 'package:virtus_app/models/workout_set.dart';
 import 'package:virtus_app/repositories/drift_workout_repository.dart';
+import 'package:virtus_app/repositories/routine_repository.dart';
 import 'package:virtus_app/repositories/settings_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 
@@ -14,6 +16,7 @@ void main() {
   late DriftWorkoutRepository repository;
   late DriftStatisticsRepository stats;
   late DriftSettingsRepository settings;
+  late DriftRoutineRepository routines;
 
   Workout sampleWorkout() => Workout(
     name: 'Push day',
@@ -34,6 +37,7 @@ void main() {
     repository = DriftWorkoutRepository(database);
     stats = DriftStatisticsRepository(database);
     settings = DriftSettingsRepository(database);
+    routines = DriftRoutineRepository(database);
   });
 
   tearDown(() async {
@@ -192,5 +196,63 @@ void main() {
 
     expect(goals.workouts, 3);
     expect(goals.volume, isNull);
+  });
+
+  test('routines persist exercises with planned set counts', () async {
+    await routines.saveRoutine(
+      Routine(
+        name: 'Push day',
+        exercises: [
+          RoutineExercise(name: 'Bench Press', setCount: 3),
+          RoutineExercise(name: 'Dips', setCount: 2),
+        ],
+      ),
+    );
+
+    final loaded = await routines.loadRoutines();
+
+    expect(loaded, hasLength(1));
+    expect(loaded.single.name, 'Push day');
+    expect(loaded.single.exercises.map((e) => e.name).toList(), [
+      'Bench Press',
+      'Dips',
+    ]);
+    expect(loaded.single.exercises.map((e) => e.setCount).toList(), [3, 2]);
+  });
+
+  test('updating a routine replaces its exercise list', () async {
+    await routines.saveRoutine(
+      Routine(
+        name: 'Legs',
+        exercises: [RoutineExercise(name: 'Squat', setCount: 3)],
+      ),
+    );
+    final original = (await routines.loadRoutines()).single;
+
+    await routines.saveRoutine(
+      Routine(
+        id: original.id,
+        name: 'Legs A',
+        createdAt: original.createdAt,
+        exercises: [RoutineExercise(name: 'Leg Press', setCount: 2)],
+      ),
+    );
+
+    final updated = (await routines.loadRoutines()).single;
+    expect(updated.name, 'Legs A');
+    expect(updated.exercises.single.name, 'Leg Press');
+    expect(updated.exercises.single.setCount, 2);
+  });
+
+  test('deleting a routine hides it from the list', () async {
+    final routine = Routine(
+      name: 'Pull day',
+      exercises: [RoutineExercise(name: 'Pull-Up')],
+    );
+    await routines.saveRoutine(routine);
+
+    await routines.deleteRoutine(routine.id);
+
+    expect(await routines.loadRoutines(), isEmpty);
   });
 }

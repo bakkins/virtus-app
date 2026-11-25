@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:virtus_app/data/database.dart';
 import 'package:virtus_app/main.dart';
 import 'package:virtus_app/repositories/drift_workout_repository.dart';
+import 'package:virtus_app/repositories/routine_repository.dart';
 import 'package:virtus_app/repositories/settings_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 import 'package:virtus_app/widgets/today_plan_card.dart';
@@ -18,6 +19,7 @@ void main() {
         repository: DriftWorkoutRepository(database),
         statisticsRepository: DriftStatisticsRepository(database),
         settingsRepository: DriftSettingsRepository(database),
+        routineRepository: DriftRoutineRepository(database),
       ),
     );
     await tester.pumpAndSettle();
@@ -212,5 +214,102 @@ void main() {
 
     expect(find.text('Volume'), findsOneWidget);
     expect(find.textContaining('1200 kg'), findsOneWidget);
+  });
+
+  testWidgets('routine can be built with planned sets and started', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('routines-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('No routines yet'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('new-routine-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('routine-name-field')),
+      'Push day',
+    );
+
+    await tester.tap(find.byKey(const Key('add-routine-exercise-button')));
+    await tester.pumpAndSettle();
+
+    final bench = find.byKey(const Key('library-exercise-Barbell Bench Press'));
+    await tester.ensureVisible(bench);
+    await tester.pumpAndSettle();
+    await tester.tap(bench);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('routine-exercise-Barbell Bench Press')),
+      findsOneWidget,
+    );
+
+    final plus = find.byKey(const Key('set-count-plus-Barbell Bench Press'));
+    await tester.ensureVisible(plus);
+    await tester.pumpAndSettle();
+    await tester.tap(plus);
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 sets'), findsOneWidget);
+
+    final save = find.byKey(const Key('save-routine-button'));
+    await tester.ensureVisible(save);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Workout'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('start-routine-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('start-routine-Push day')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(TodayPlanCard),
+        matching: find.text('Barbell Bench Press'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('2 sets'), findsOneWidget);
+  });
+
+  testWidgets('current workout can be saved as a routine', (tester) async {
+    await pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('add-exercise-button')));
+    await tester.pumpAndSettle();
+    final pullUp = find.byKey(const Key('library-exercise-Pull-Up'));
+    await tester.ensureVisible(pullUp);
+    await tester.pumpAndSettle();
+    await tester.tap(pullUp);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('save-as-routine-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('routine-name-field')),
+      'My routine',
+    );
+    await tester.tap(find.byKey(const Key('save-as-routine-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Saved as routine'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('start-routine-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('start-routine-My routine')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(TodayPlanCard),
+        matching: find.text('Pull-Up'),
+      ),
+      findsOneWidget,
+    );
   });
 }

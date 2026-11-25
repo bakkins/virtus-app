@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:virtus_app/models/routine.dart';
 import 'package:virtus_app/models/workout.dart';
+import 'package:virtus_app/repositories/routine_repository.dart';
 import 'package:virtus_app/repositories/settings_repository.dart';
 import 'package:virtus_app/repositories/statistics_repository.dart';
 import 'package:virtus_app/repositories/workout_repository.dart';
 import 'package:virtus_app/screens/history_screen.dart';
+import 'package:virtus_app/screens/routines_screen.dart';
 import 'package:virtus_app/screens/settings_screen.dart';
 import 'package:virtus_app/screens/statistics_view.dart';
 import 'package:virtus_app/screens/workout_view.dart';
@@ -18,12 +21,14 @@ class HomeScreen extends StatefulWidget {
     required this.repository,
     required this.statisticsRepository,
     required this.settingsRepository,
+    required this.routineRepository,
     this.initialWorkout,
   });
 
   final WorkoutRepository repository;
   final StatisticsRepository statisticsRepository;
   final SettingsRepository settingsRepository;
+  final RoutineRepository routineRepository;
   final Workout? initialWorkout;
 
   @override
@@ -75,6 +80,83 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _openRoutines() {
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RoutinesScreen(
+          repository: widget.routineRepository,
+          statisticsRepository: widget.statisticsRepository,
+          onTemplatesChanged: _templatesChanged,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveAsRoutine() async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => const _RoutineNameDialog(),
+    );
+
+    if (name == null || name.isEmpty) return;
+
+    await widget.routineRepository.saveRoutine(
+      Routine(
+        name: name,
+        exercises: _controller.exercises
+            .map(
+              (e) => RoutineExercise(
+                name: e.name,
+                setCount: e.sets.isEmpty ? 1 : e.sets.length,
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Saved as routine "$name"')));
+  }
+
+  Future<void> _startRoutine() async {
+    final routines = await widget.routineRepository.loadRoutines();
+    if (!mounted) return;
+
+    if (routines.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No routines yet')));
+      return;
+    }
+
+    final routine = await showModalBottomSheet<Routine>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          children: [
+            for (final saved in routines)
+              ListTile(
+                key: ValueKey('start-routine-${saved.name}'),
+                title: Text(saved.name),
+                subtitle: Text('${saved.exercises.length} exercises'),
+                onTap: () => Navigator.of(context).pop(saved),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (routine == null) return;
+
+    _controller.startRoutine(routine);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Started ${routine.name}')));
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -86,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onSectionChanged: _selectSection,
             onFinish: _controller.exercises.isEmpty ? null : _finishWorkout,
             onHistory: _openHistory,
+            onRoutines: _openRoutines,
           ),
           body: IndexedStack(
             index: _section.index,
@@ -95,6 +178,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   TodayPlanCard(
                     exercises: _controller.exercises,
                     date: _controller.workout.date,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('start-routine-button'),
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Start routine'),
+                            onPressed: _startRoutine,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const Key('save-as-routine-button'),
+                            icon: const Icon(Icons.bookmark_add),
+                            label: const Text('Save as routine'),
+                            onPressed: _saveAsRoutine,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   GoalsDashboard(
                     repository: widget.statisticsRepository,
@@ -122,6 +232,47 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _RoutineNameDialog extends StatefulWidget {
+  const _RoutineNameDialog();
+
+  @override
+  State<_RoutineNameDialog> createState() => _RoutineNameDialogState();
+}
+
+class _RoutineNameDialogState extends State<_RoutineNameDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Save as routine'),
+      content: TextField(
+        key: const Key('routine-name-field'),
+        controller: _controller,
+        autofocus: true,
+        decoration: const InputDecoration(labelText: 'Routine name'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const Key('save-as-routine-confirm'),
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

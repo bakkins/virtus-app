@@ -9,12 +9,14 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onSectionChanged,
     this.onFinish,
     this.onHistory,
+    this.onRoutines,
   });
 
   final HomeSection section;
   final ValueChanged<HomeSection> onSectionChanged;
   final VoidCallback? onFinish;
   final VoidCallback? onHistory;
+  final VoidCallback? onRoutines;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,12 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Text(_titleFor(section)),
       actions: [
         if (section == HomeSection.home) ...[
+          IconButton(
+            key: const Key('routines-button'),
+            icon: const Icon(Icons.playlist_play),
+            tooltip: 'Routines',
+            onPressed: onRoutines,
+          ),
           IconButton(
             key: const Key('finish-workout-button'),
             icon: const Icon(Icons.check),

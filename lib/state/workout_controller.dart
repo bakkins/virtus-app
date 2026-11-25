@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:virtus_app/models/exercise.dart';
+import 'package:virtus_app/models/routine.dart';
 import 'package:virtus_app/models/workout.dart';
 import 'package:virtus_app/models/workout_set.dart';
 import 'package:virtus_app/repositories/workout_repository.dart';
@@ -37,6 +38,25 @@ class WorkoutController extends ChangeNotifier {
     _workout.exercises.add(
       Exercise(name: name, sets: [WorkoutSet(weight: 0, reps: 0, rir: 0)]),
     );
+    _notify();
+  }
+
+  void startRoutine(Routine routine) {
+    _workout.name = routine.name;
+    _workout.exercises = [
+      for (final planned in routine.exercises)
+        Exercise(
+          name: planned.name,
+          sets: [
+            for (
+              var i = 0;
+              i < (planned.setCount < 1 ? 1 : planned.setCount);
+              i++
+            )
+              WorkoutSet(weight: 0, reps: 0, rir: 0),
+          ],
+        ),
+    ];
     _notify();
   }
 
@@ -91,28 +111,27 @@ class WorkoutController extends ChangeNotifier {
   }
 
   Future<bool> finishWorkout() async {
-  if (_workout.exercises.isEmpty) return false;
+    if (_workout.exercises.isEmpty) return false;
 
-  _saveTimer?.cancel();
+    _saveTimer?.cancel();
 
-  try {
-    await _repository.saveWorkout(_workout);
-  } catch (_) {
-    return false;
-  }
+    try {
+      await _repository.saveWorkout(_workout);
+    } catch (_) {
+      return false;
+    }
 
-  _workout = Workout(
-    name: 'Today\'s workout',
-    date: DateTime.now(),
-    exercises: [],
-  );
+    _workout = Workout(
+      name: 'Today\'s workout',
+      date: DateTime.now(),
+      exercises: [],
+    );
 
-  try {
-    await _repository.saveCurrent(_workout);
-  } catch (_) {
-  }
+    try {
+      await _repository.saveCurrent(_workout);
+    } catch (_) {}
 
-  notifyListeners();
-  return true;
+    notifyListeners();
+    return true;
   }
 }
